@@ -2,6 +2,37 @@
 
 A native Omarchy/Quickshell bar widget with a local Python collector and durable SQLite token history. Shows Today, 7 Days and All Time, model breakdowns, and optional genuine provider quota windows. Unknown readings remain unavailable rather than fabricated zeroes.
 
+## Screenshots
+
+These are captures of the actual QML interface in an isolated preview session,
+using **synthetic demonstration data**. Example models, token totals and quota
+percentages are not readings from a real account. No personal usage, desktop
+content or credentials are included.
+
+<table>
+<tr>
+<td><img src="docs/screenshots/overview.png" width="420" alt="AI Usage showing the Hermes tab, Today totals, hourly token chart and ranked example models"></td>
+<td><img src="docs/screenshots/weekly-quotas.png" width="420" alt="AI Usage showing the Codex tab, seven-day token chart and a synthetic weekly quota window"></td>
+</tr>
+<tr><td><strong>Today:</strong> hourly token activity and model totals.</td><td><strong>7 Days:</strong> daily token activity and the optional provider-limit display.</td></tr>
+</table>
+
+## How it works
+
+1. **Open the panel:** click the AI icon in the bar. Agent tabs list detected
+   executables, not merely leftover history directories.
+2. **Choose an agent and range:** select a tool, then Today, 7 Days or All Time.
+   The three totals remain visible; the chart follows the selected range.
+3. **Inspect usage:** switch between Token activity and Model breakdown. Hover
+   chart bars or model rows for detail; Show all expands the ranked model list.
+4. **Read limits separately:** Usage limits show genuine provider windows only
+   after explicit remote-quota opt-in. Missing readings say unavailable; local
+   token history is never converted into a subscription percentage. The sample
+   quota above illustrates the display only.
+5. **Configure and refresh:** use the gear for the default agent, IANA timezone,
+   personal token budget, reduced motion and source-path overrides. Refresh
+   requests reconciliation through the existing collector, not a second writer.
+
 ## Requirements
 
 - Omarchy Quattro (manifest schema v1; developed against Omarchy 4.0.4).
