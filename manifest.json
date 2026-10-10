@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "cynricantao.ai-usage",
+  "name": "Token activity",
+  "version": "1.0.0",
+  "author": "cynricantao",
+  "license": "MIT",
+  "description": "Compact local token history from the shared read-only snapshot.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "activation": "on-demand",
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Token activity",
+    "description": "Local usage and genuine provider quotas",
+    "category": "AI",
+    "aliases": [
+      "token-activity"
+    ],
+    "allowMultiple": false,
+    "defaults": {},
+    "schema": []
+  },
+  "omarchy": {
+    "clonedFrom": "omarchy.agents"
+  }
+}

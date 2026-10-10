@@ -1,0 +1,2 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const path=require('node:path');
+test('chart choices exclude daily usage and retain model mode mapping',()=>{const q=fs.readFileSync(path.join(__dirname,'../Panel.qml'),'utf8');assert.ok(q.includes('labels: ["Token activity", "Model breakdown"]'));assert.ok(q.includes('currentIndex: [0, 2].indexOf(root.chartMode)'));assert.ok(q.includes('root.chartMode=[0, 2][index]'));assert.ok(q.includes('if (index === 0 || index === 2)'));assert.ok(!q.includes('"Daily usage"'));});

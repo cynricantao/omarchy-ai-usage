@@ -1,0 +1,15 @@
+# Token activity runtime contract v1
+
+One collector owns SQLite writes and atomically publishes `$XDG_DATA_HOME/token-activity/snapshot.json` (default ~/.local/share). All UTC timestamps are epoch seconds; display boundaries use settings timezone (UTC default). Null metrics mean unknown. No prompt/content fields allowed.
+
+Snapshot: `{version:1,updated_at:1790000000,timezone:"UTC",settings:{default_tool:"hermes",timezone:"UTC",daily_budget:null,reduced_motion:false,paths:{}},tools:[Tool],health:[]}`.
+
+Tool: `{id,name,installed,state,capabilities:["tokens","quota"],activity:"idle"|"working"|"unknown"|"error",active_models:[],last_model:string|null,totals:{today:number|null,week:number|null,all:number|null},days:[Bucket x7],ranges:{today:Range,week:Range,all:Range},quotas:[],coverage:{earliest:string|null,incomplete:true,undated_tokens:number|null,note:string},last_source_at:number|null}`. Hermes always first; absent known tools remain identifiable.
+
+Range: `{buckets:[Bucket],models:[{model,provider,total}]}`. Bucket: `{label,start,end,input,output,cache_read,cache_write,total}`; numeric fields nullable, start/end epochs. Missing buckets remain gaps, not zero. Known Hermes canonical input excludes cache, output includes reasoning. All totals exclude extra reasoning. No stacked caches. DSH uses the same disjoint buckets; total preserves native exact total if present, otherwise sums recorded buckets (matching DSH token meter). Missing DSH cache fields themselves stay null; recorded-only totals do not imply complete provider accounting. Seeded inherited history is excluded from machine-wide DSH spend.
+
+Quota: `{account_id,label,used_percent,remaining_percent,resets_at,observed_at,status}` with nullable timestamps and percentages; account identity is opaque, nonsecret. No account-wide token summaries enter local totals.
+
+CLI: `token-activity status|rescan|export|backup|serve|once`. `token-activity settings` prints config; `token-activity configure JSON` validates/atomically merges only timezone/default_tool/daily_budget/reduced_motion/remote_quotas/paths. `paths` maps hermes/codex/claude/antigravity/opencode/commandcode/dsh to absolute directories. UI invokes CLI using argument arrays. rescan wakes running collector, not another writer.
+
+Secondary adapter module `adapters.py`: `discover(settings)->list[dict]` (id,name,installed,homes,state,capabilities,note); `collect(tool)->dict` with `events:[Event],counters:[Counter],diagnostics:[]`. Event `{id,tool,profile,session,provider,model,task,occurred_at,observed_at,usage:{input,output,cache_read,cache_write,total},provenance,source_key}`; stable ids, no raw content. Counter same plus `key`, cumulative usage, `first_seen,last_seen`; no guessed daily timestamp. Full input route identity from actual source only. `quota_read(codex_home)->dict` returns `{quotas:[],status,account_usage:object|null}`. Only native client account read methods; 15s bounded subprocess. Null missing fields. This module does not write ledger/config, start services, or enable private credential APIs.

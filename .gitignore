@@ -1,0 +1,26 @@
+# Private runtime state, local configuration, credentials and generated reports
+__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.example
+*.sqlite*
+*.db
+*.db-*
+snapshot.json
+settings.json
+auth.json
+collector.lock
+rescan.json
+backups/
+spool/
+activity/
+*.jsonl
+*.log
+*.backup*
+*.bak*
+tests/qmllint.json
+tests/imports/
+performance*.json
+panel-*.png
+.DS_Store
