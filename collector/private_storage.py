@@ -7,6 +7,12 @@ import os
 from pathlib import Path
 import stat
 
+# systemd user managers can remap root-owned ancestors inside their sandbox, so
+# "/" and "/home" may report as the kernel's unmapped/overflow uid instead of 0.
+# That uid is never a value this user owns; accept it only for non-leaf
+# ancestors, which are additionally required to be non-writable.
+OVERFLOW_UIDS = frozenset((65534, 4294967294))
+
 
 def private_dir(path):
     path = Path(os.path.abspath(os.fspath(path)))
@@ -21,13 +27,19 @@ def private_dir(path):
             info = component.lstat()
         if not stat.S_ISDIR(info.st_mode):
             raise ValueError('storage path contains a non-directory or symlink')
-        if info.st_uid not in (0, os.getuid()):
+        if component == path:
+            # The private leaf must be owned by this user and unreadable to others.
+            if info.st_uid != os.getuid() or info.st_mode & 0o077:
+                raise ValueError('storage directory must be owned by this user with mode 0700')
+            continue
+        # Ancestors may be root-owned, or appear as the kernel's unmapped
+        # overflow uid when a user namespace or systemd sandbox remaps root.
+        # Any other owner is unexpected and refused, as is any non-sticky
+        # ancestor we could modify.
+        if info.st_uid not in (0, os.getuid()) and info.st_uid not in OVERFLOW_UIDS:
             raise ValueError('storage ancestor has unexpected ownership')
-        if info.st_mode & 0o022:
-            # A root-owned sticky temporary ancestor is permitted, never the
-            # private leaf itself. All generated files live below a private leaf.
-            if component == path or info.st_uid != 0 or not info.st_mode & stat.S_ISVTX:
-                raise ValueError('storage ancestor is writable by another user')
+        if info.st_mode & 0o022 and not (info.st_uid == 0 and info.st_mode & stat.S_ISVTX):
+            raise ValueError('storage ancestor is writable by another user')
     if info.st_uid != os.getuid() or info.st_mode & 0o077:
         raise ValueError('storage directory must be owned by this user with mode 0700')
     return path

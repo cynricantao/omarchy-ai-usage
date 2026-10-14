@@ -45,8 +45,13 @@ class Collector:
             else:
                 for key,q in current:
                     q['status']=status
+                    if status=='unauthorized':
+                        # No usable credential: the retained numbers can never be
+                        # refreshed by this read, so present the window as
+                        # Unavailable instead of as a current percentage.
+                        q['used_percent']=None;q['remaining_percent']=None
                     self.ledger.db.execute('update quota_current set data=? where id=?',(packed(q),key))
-                self.ledger.diagnose(tool+'-quota',status+'; last valid reading retained')
+                self.ledger.diagnose(tool+'-quota',status+('; retained percentages cleared' if status=='unauthorized' else '; last valid reading retained'))
     def quotas(self,tool=None):
         rows=[json.loads(r[0]) for r in self.ledger.db.execute('select data from quota_current')]
         return rows if tool is None else [q for q in rows if q.get('tool','codex')==tool]
@@ -103,14 +108,18 @@ class Collector:
         if not changed and not force and now-getattr(self,'published',0)<30:return False
         records=self.ledger.records();tools=[]
         for tool in sorted(self.tools,key=lambda t:(t['id']!='hermes',t['id'])):
-            tid=tool['id'];rows=[r for r in records if r['tool']==tid]
+            tid=tool['id']
+            # Command Code is also an API provider: usage routed through it by
+            # other local tools (e.g. Hermes) is attributed to this view too.
+            # The ledger already reconciled hooks against cumulative counters.
+            rows=[r for r in records if r['tool']==tid or (tid=='commandcode' and (r.get('provider') or '').lower()=='commandcode')]
             view=project(rows,self.settings['timezone'],now)
             active=sorted({x['model'] for x in activity}) if tid=='hermes' else []
             last=max(rows,key=lambda e:e.get('occurred_at') or e.get('interval_end') or 0,default={})
             state=self.source_states.get(tid,tool.get('state','Installed'))
             state={'source_present':'Connected','installed':'Installed','absent':'Not detected','stale_evidence':'Stale'}.get(state,state)
             if rows and state not in ('Stale','Unsupported source'):state='Usage available'
-            if tid=='codex' and any(q.get('status')=='unauthorized' for q in self.quotas(tid)):state='Needs sign-in'
+            if (tid=='codex' or tid=='claude') and any(q.get('status')=='unauthorized' for q in self.quotas(tid)):state='Needs sign-in'
             note=tool.get('note','')
             if tid=='hermes':note='Request hooks in newly loaded default-profile processes; existing processes, other profiles and Codex runtime use reconciliation. Multi-request historical rows have unknown timing.'
             view['coverage']['note']+=' '+note

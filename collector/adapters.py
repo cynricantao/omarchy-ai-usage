@@ -76,7 +76,7 @@ def discover(settings):
         if key == 'dsh':
             note = 'Read-only DSH v4 session usage, including subagents; inherited fork history excluded. Totals sum recorded disjoint token buckets (matching DSH token meter) unless an exact provider total is present. Unreported cache buckets remain unknown; subscription quotas and live activity are not collected.'
         if key == 'commandcode':
-            note = 'Local v3 session usage only; GOAT account credit limits are not collected.'
+            note = 'Local v3 CLI session usage plus provider-attributed usage routed through Command Code by other local tools, deduplicated; account credit balance is not collected.'
         if key == 'antigravity':
             note = 'Native CLI generation usage from read-only SQLite metadata; provider quota is not collected.'
         elif desktop and not present and not binary:

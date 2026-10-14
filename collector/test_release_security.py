@@ -61,6 +61,38 @@ class ReleaseSecurityTests(unittest.TestCase):
                 atomic_json(target / 'event.json', {})
             self.assertEqual(target.stat().st_mode & 0o777, 0o777)
 
+    def test_namespace_remapped_ancestor_owner_is_tolerated_but_foreign_owner_refused(self):
+        """systemd sandboxes may show root-owned ancestors as the overflow uid."""
+        import private_storage
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as td:
+            ancestor = Path(td) / 'ancestor'; ancestor.mkdir(mode=0o755)
+            # The leaf must live below the remapped ancestor for the
+            # ancestor-owner checks to be exercised.
+            link = ancestor / 'private'; link.mkdir(mode=0o700)
+            real_lstat = Path.lstat
+            def lstat_ancestor_as(uid):
+                def wrapped(self):
+                    info = real_lstat(self)
+                    if self == ancestor:
+                        return SimpleNamespace(st_mode=info.st_mode, st_uid=uid, st_nlink=info.st_nlink)
+                    return info
+                return wrapped
+            with patch.object(Path, 'lstat', lstat_ancestor_as(65534)):
+                private_storage.private_dir(link)
+                self.assertTrue(private_storage.private_dir(ancestor / 'nested').is_dir())
+            with patch.object(Path, 'lstat', lstat_ancestor_as(4242)):
+                with self.assertRaises(ValueError):
+                    private_storage.private_dir(link)
+                with self.assertRaises(ValueError):
+                    private_storage.private_dir(ancestor / 'refused')
+            ancestor.chmod(0o733)
+            with patch.object(Path, 'lstat', lstat_ancestor_as(65534)):
+                with self.assertRaises(ValueError):
+                    private_storage.private_dir(link)
+            self.assertFalse((ancestor / 'refused').exists())
+
     def test_malformed_activity_is_ignored(self):
         from collector import Collector
         with tempfile.TemporaryDirectory() as td:

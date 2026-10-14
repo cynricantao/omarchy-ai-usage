@@ -66,14 +66,16 @@ class AntigravityQuotaTests(unittest.TestCase):
         self.assertTrue(hasattr(service, 'quota_batch'), 'service native quota dispatch missing')
         tools = [dict(id='codex', installed=True, homes=['/fixture/codex']),
                  dict(id='antigravity', installed=True, homes=['/fixture/agy']),
-                 dict(id='commandcode', installed=True, homes=['/fixture/cmd'])]
-        with patch('adapters.quota_read', return_value=dict(status='ok', quotas=[])) as codex, patch('antigravity_source.quota_read', return_value=dict(tool='antigravity', status='ok', quotas=[])) as agy, patch('commandcode_quota.quota_read', return_value=dict(tool='commandcode',status='ok',quotas=[])) as cmd:
+                 dict(id='commandcode', installed=True, homes=['/fixture/cmd']),
+                 dict(id='claude', installed=True, homes=['/fixture/claude'])]
+        with patch('adapters.quota_read', return_value=dict(status='ok', quotas=[])) as codex, patch('antigravity_source.quota_read', return_value=dict(tool='antigravity', status='ok', quotas=[])) as agy, patch('commandcode_quota.quota_read', return_value=dict(tool='commandcode',status='ok',quotas=[])) as cmd, patch('claude_quota.quota_read', return_value=dict(tool='claude',status='ok',quotas=[])) as claude:
             result = service.quota_batch(tools,consent=True)
             codex.assert_called_once_with('/fixture/codex')
             agy.assert_called_once_with()
             cmd.assert_called_once_with('/fixture/cmd')
-            self.assertEqual([r['tool'] for r in result], ['codex', 'antigravity', 'commandcode'])
-        with patch('adapters.quota_read', side_effect=OSError('secret: not for logs')), patch('antigravity_source.quota_read', return_value=dict(tool='antigravity', status='ok', quotas=[])), patch('commandcode_quota.quota_read', return_value=dict(tool='commandcode',status='ok',quotas=[])):
+            claude.assert_called_once_with('/fixture/claude')
+            self.assertEqual([r['tool'] for r in result], ['codex', 'antigravity', 'commandcode', 'claude'])
+        with patch('adapters.quota_read', side_effect=OSError('secret: not for logs')), patch('antigravity_source.quota_read', return_value=dict(tool='antigravity', status='ok', quotas=[])), patch('commandcode_quota.quota_read', return_value=dict(tool='commandcode',status='ok',quotas=[])), patch('claude_quota.quota_read', return_value=dict(tool='claude',status='ok',quotas=[])):
             result = service.quota_batch(tools,consent=True)
             self.assertEqual(result[0], dict(tool='codex', status='unavailable', quotas=[]))
             self.assertEqual(result[1]['status'], 'ok')

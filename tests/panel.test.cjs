@@ -6,3 +6,9 @@ test('native panel keeps lifecycle identity and watches only shared snapshot',()
  for(const s of ['moduleName: "cynricantao.ai-usage"','ipcTarget: "cynricantao.ai-usage"','FileView {','watchChanges: true','snapshot.json','KeyboardPanel {','BarIconButton {','text: "󱚣"','Style.space(420)','Token activity','onOpenedChanged:','Logic.openTool','Tabs {','Today','7 Days','All Time','reduced_motion','"configure", JSON.stringify','"rescan"'])assert.ok(q.includes(s),s);
  assert.ok(!fs.existsSync(path.join(base,'Main.qml'))); assert.doesNotMatch(q,/sh",\s*"-c|UsageService/);
 });
+
+test('a failed or invalid snapshot read never blanks the last good view',()=>{
+ const q=fs.readFileSync(path.join(base,'Panel.qml'),'utf8');
+ assert.ok(/onLoaded:\s*\{[^}]*unavailable[^}]*\}/.test(q),'onLoaded must refuse the unavailable stub once real data is loaded');
+ assert.ok(!/onLoadFailed:\s*root\.snapshot\s*=\s*Logic\.parseSnapshot/.test(q),'a failed read must not install the empty stub');
+});
