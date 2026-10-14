@@ -92,8 +92,12 @@ Panel {
         path: root.dataHome + "/token-activity/snapshot.json"
         watchChanges: true
         onFileChanged: reload()
-        onLoaded: root.snapshot = Logic.parseSnapshot(text())
-        onLoadFailed: root.snapshot = Logic.parseSnapshot("")
+        // Never install the unavailable stub over good data: a failed or
+        // invalid read must not blank every list, including Tokens by model.
+        onLoaded: {
+            var next = Logic.parseSnapshot(text())
+            if (next.unavailable !== true || root.snapshot.unavailable === true) root.snapshot = next
+        }
     }
     Process {
         id: request
@@ -124,7 +128,7 @@ Panel {
         focusTarget: panelFocus
         // All custom visuals are static; native shell owns popup transitions.
         contentWidth: panel.fittedContentWidth(Style.space(420))
-        contentHeight: panel.fittedContentHeight(body.implicitHeight, Style.space(740))
+        contentHeight: panel.fittedContentHeight(body.implicitHeight, Style.space(960))
         FocusScope {
             id: panelFocus
             anchors.fill: parent

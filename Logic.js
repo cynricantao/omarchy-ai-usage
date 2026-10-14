@@ -56,6 +56,7 @@ function quotaWindow(q) {
     var label=String(q.label || '').toLowerCase();
     if (q.window_minutes === 10080 || /weekly|7 days|7-day|168 hours/.test(label)) return 'week';
     if (q.window_minutes === 300 || /5[- ]?h|5 hours|300 minutes/.test(label)) return '5h';
+    if (/monthly|billing cycle/.test(label)) return 'month';
     return '';
 }
 function quotaRows(tool) {
@@ -63,12 +64,12 @@ function quotaRows(tool) {
     var result=raw.map(function(q) {
         var row={}; Object.keys(q).forEach(function(k) { row[k]=q[k]; });
         var win=quotaWindow(q);
-        row.label=(q.model ? (q.model_scope === 'shared_group' && q.model === 'Claude and GPT models' ? 'Opus / Sonnet / GPT-OSS' : q.model)+' · ' : '')+(win === 'week' ? 'Weekly limit' : win === '5h' ? '5-hour limit' : q.label || 'Provider limit');
+        row.label=(q.model ? (q.model_scope === 'shared_group' && q.model === 'Claude and GPT models' ? 'Opus / Sonnet / GPT-OSS' : q.model)+' · ' : '')+(win === 'week' ? 'Weekly limit' : win === '5h' ? '5-hour limit' : win === 'month' ? 'Monthly limit' : q.label || 'Provider limit');
         return row;
     });
     function missing(win,model,label) {
         if (!raw.some(function(q) { return quotaWindow(q) === win && (model ? String(q.model || q.label || '').toLowerCase().indexOf(model.toLowerCase()) >= 0 : !q.model); }))
-            result.push({label:label,model:model || null,window_minutes:win === 'week' ? 10080 : 300,used_percent:null,remaining_percent:null,resets_at:null,observed_at:null,status:'unavailable',source:'No verified provider quota source'});
+            result.push({label:label,model:model || null,window_minutes:win === 'week' ? 10080 : win === 'month' ? null : 300,used_percent:null,remaining_percent:null,resets_at:null,observed_at:null,status:'unavailable',source:'No verified provider quota source'});
     }
     if (tool.id === 'antigravity' && raw.some(function(q) { return q.model_scope === 'shared_group'; })) {
         var groups=[];
@@ -80,6 +81,7 @@ function quotaRows(tool) {
     if (tool.id === 'commandcode' || tool.id === 'claude' || tool.id === 'antigravity') {
         missing('5h',null,'5-hour limit'); missing('week',null,'Weekly limit');
     }
+    if (tool.id === 'commandcode') missing('month',null,'Monthly limit');
     if (tool.id === 'antigravity') ['Opus','ChatGPT'].forEach(function(model) {
         missing('5h',model,model+' · 5-hour limit'); missing('week',model,model+' · Weekly limit');
     });

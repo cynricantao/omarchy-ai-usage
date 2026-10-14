@@ -9,6 +9,9 @@ cache detail is subtracted from uncached input rather than added twice. Stable e
 and timestamps reconcile cloned/forked copies. Unsupported versions fail closed.
 Checkpoint/prompt sidecars and transcript content are not retained.
 
-Local usage is not credit balance, subscription verification or an account-wide quota.
+The displayed usage unions local CLI session records with provider-attributed usage routed
+through Command Code by other local tools (e.g. Hermes records `billing_provider=commandcode`),
+deduplicated by the shared ledger; it is not credit balance or subscription verification.
 The separate quota adapter is disabled by default, reads existing authentication only after
-consent, and requests fixed production-origin read-only endpoints. See [NATIVE-QUOTAS.md](NATIVE-QUOTAS.md).
+consent, requests fixed production-origin read-only endpoints, and reports the account's
+5-hour, weekly and subscription-backed monthly credit meters. See [NATIVE-QUOTAS.md](NATIVE-QUOTAS.md).

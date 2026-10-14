@@ -30,21 +30,47 @@ class Watcher:
 
 def quota_delay(failures):return min(3600,900*(2**min(failures,2)))+random.uniform(0,60)
 
+def claude_credential_sig(tools):
+    """Stat signature of each installed Claude home's credential file.
+
+    Metadata only, never contents; an absent file yields None placeholders so
+    a later sign-in is visible as a signature change."""
+    sig=[]
+    for tool in tools:
+        if tool.get('id')!='claude' or not tool.get('installed'):continue
+        for home in tool.get('homes',[]):
+            path=Path(home if isinstance(home,str) else home.get('path',home.get('home','')))/'.credentials.json'
+            try:
+                st=path.stat();sig.append((str(path),st.st_mtime_ns,st.st_size))
+            except OSError:sig.append((str(path),None,None))
+    return sig
+
+def credential_wake(claude_quotas):
+    """A changed credential only matters while Claude has no current reading or
+    its retained view is signed out; an ok reading already refreshes on the
+    normal cadence, so rotation never buys an extra read."""
+    return not claude_quotas or any(q.get('status')=='unauthorized' for q in claude_quotas)
+
 def quota_batch(tools,consent=False):
     if consent is not True:return []
     from adapters import quota_read
     from antigravity_source import quota_read as agy_quota_read
     from commandcode_quota import quota_read as cmd_quota_read
+    from claude_quota import quota_read as claude_quota_read
     results=[]
     for tool in tools:
         tid=tool['id']
-        if not tool.get('installed') or tid not in ('codex','antigravity','commandcode'):continue
+        if not tool.get('installed') or tid not in ('codex','antigravity','commandcode','claude'):continue
         try:
             if tid=='codex':
                 if not tool.get('homes'):continue
                 home=tool['homes'][0];home=home if isinstance(home,str) else home.get('path',home.get('home',''))
                 result=quota_read(home)
             elif tid=='antigravity':result=agy_quota_read()
+            elif tid=='claude':
+                home=tool.get('homes',[None])[0] if tool.get('homes') else None
+                if isinstance(home,dict):home=home.get('path',home.get('home'))
+                result=claude_quota_read(home)
             else:
                 home=tool.get('homes',[None])[0] if tool.get('homes') else None
                 if isinstance(home,dict):home=home.get('path',home.get('home'))
@@ -71,6 +97,7 @@ def run(root,config,once=False):
         watcher=Watcher([root/'spool',root/'activity',Path(config).parent])
         pool=concurrent.futures.ThreadPoolExecutor(max_workers=1,thread_name_prefix='native-quota')
         pending=None;next_quota=max((q.get('observed_at',0)+900 for q in c.quotas()),default=0);failures=0;rescan_sig=None
+        cred_sig=claude_credential_sig(c.tools)
         try:
             while not stop:
                 start=time.monotonic();force=False
@@ -85,11 +112,19 @@ def run(root,config,once=False):
                     failures=0 if results and all(r.get('status')=='ok' for r in results) else failures+1
                     next_quota=now+max(quota_delay(failures),max((float(r.get('retry_after') or 0) for r in results),default=0));pending=None;force=True
                 if pending is None and now>=next_quota and c.settings.get('remote_quotas',False):
-                    if any(t.get('installed') and t['id'] in ('codex','antigravity','commandcode') for t in c.tools):
+                    if any(t.get('installed') and t['id'] in ('codex','antigravity','commandcode','claude') for t in c.tools):
                         pending=pool.submit(quota_batch,list(c.tools),True)
                     else:next_quota=now+900
                 c.scan(discover,collect,force=force)
                 watcher.add([h if isinstance(h,str) else h.get('path','') for t in c.tools for h in t.get('homes',[])])
+                # A sign-in (or first credential) must turn an unauthorized
+                # window into a real reading right away, not wait out the
+                # failure backoff; ok readings keep the normal cadence.
+                sig=claude_credential_sig(c.tools)
+                if sig!=cred_sig:
+                    wake=credential_wake(c.quotas('claude'))
+                    cred_sig=sig
+                    if wake:next_quota=min(next_quota,now)
                 # Coalesce bursts; no endless history/remote scans or busy loop.
                 elapsed=time.monotonic()-start
                 if elapsed<0.15:time.sleep(0.15-elapsed)

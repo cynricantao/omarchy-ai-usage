@@ -19,5 +19,6 @@ Remote quota scheduling defaults off. After explicit `remote_quotas:true` consen
 - Codex runs `codex app-server --listen stdio://` with account-read methods only. The native client handles sign-in; emails and unselected response fields are discarded. An overall deadline, stdout limit and exact owned-process-group cleanup bound the exchange.
 - Antigravity runs the native zero-turn `/usage` export. Stdout is streamed with a size limit and overall deadline, not unbounded capture. Human response text is not persisted.
 - Command Code reads existing authentication and queries its fixed production HTTPS origin. Redirects/proxies are disabled; bodies/timeouts are bounded. It does open a credential file if needed; the secret remains in memory and is never logged or persisted.
+- Claude Code reads its first-party OAuth usage endpoint with existing authentication. Only `five_hour`/`seven_day` utilization fractions and reset timestamps are retained; redirects and custom endpoints are refused and the secret stays in memory.
 
 No local token totals imply subscription quota. See [NATIVE-QUOTAS.md](NATIVE-QUOTAS.md).
